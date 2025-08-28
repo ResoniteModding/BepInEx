@@ -146,7 +146,9 @@ public sealed class CompileTask : FrostingTask<BuildContext>
                 Properties =
                 {
                     ["SourceRevisionId"] = new[] { ctx.CurrentCommit.Sha },
-                    ["RepositoryBranch"] = new[] { ctx.GitBranchCurrent(ctx.RootDirectory).FriendlyName }
+                    ["RepositoryBranch"] = new[] { ctx.GitBranchCurrent(ctx.RootDirectory).FriendlyName },
+                    ["DebugType"] = new[] { "full" },
+                    ["DebugSymbols"] = new[] { "true" }
                 }
             };
         }
