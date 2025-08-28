@@ -299,8 +299,6 @@ public sealed class MakeDistTask : FrostingTask<BuildContext>
                 }
                 else if (dist.Runtime == "BepisLoader")
                 {
-                    ctx.DeleteFile(sourceDirectory.CombineWithFilePath("BepisLoader.exe"));
-
                     foreach (var filePath in ctx.GetFiles(sourceDirectory.Combine("BepisLoader.*").FullPath))
                         ctx.CopyFileToDirectory(filePath, targetDir);
 

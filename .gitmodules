@@ -3,4 +3,4 @@
 	url = https://github.com/art0007i/HarmonyX/
 [submodule "Hardware.Info"]
 	path = Hardware.Info
-	url = git@github.com:art0007i/Hardware.Info.git
+	url = https://github.com/art0007i/Hardware.Info

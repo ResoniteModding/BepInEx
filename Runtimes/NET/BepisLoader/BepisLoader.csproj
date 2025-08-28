@@ -29,11 +29,18 @@
             <Private>false</Private>
             <ExcludeAssets>runtime</ExcludeAssets>
         </ProjectReference>
+
+        <!-- This needs to be referenced here, so that the .deps.json file doesn't include it -->
+        <!-- (Including a project reference like this makes it get removed from the json file) -->
         <ProjectReference Include="..\..\..\BepInEx.Core\BepInEx.Core.csproj">
             <Private>false</Private>
             <ExcludeAssets>runtime</ExcludeAssets>
         </ProjectReference>
     </ItemGroup>
+
+    <Target Name="RemoveExeAfterBuild" AfterTargets="Build">
+        <Delete Files="$(OutputPath)$(AssemblyName)$(ExecutableExtension)" />
+    </Target>
 
     <Import Project="..\BepInEx.NET.Shared\BepInEx.NET.Shared.projitems" Label="Shared"/>
 </Project>
