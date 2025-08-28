@@ -35,6 +35,7 @@ public class BuildContext : FrostingContext
     public const string DoorstopVersion = "4.3.0";
     public const string DotnetRuntimeVersion = "6.0.7";
     public const string DobbyVersion = "1.0.5";
+    public const string HookfxrVersion = "1.0.0";
 
     public const string DotnetRuntimeZipUrl =
         $"https://github.com/BepInEx/dotnet-runtime/releases/download/{DotnetRuntimeVersion}/mini-coreclr-Release.zip";
@@ -111,6 +112,8 @@ public class BuildContext : FrostingContext
 
     public static string DobbyZipUrl(string arch) =>
         $"https://github.com/BepInEx/Dobby/releases/download/v{DobbyVersion}/dobby-{arch}.zip";
+
+    public static string HookfxrZipUrl = $"https://github.com/ResoniteModding/hookfxr/releases/download/v{HookfxrVersion}/hookfxr-Release.zip";
 }
 
 [TaskName("Clean")]
@@ -203,6 +206,16 @@ public sealed class DownloadDependenciesTask : FrostingTask<BuildContext>
             ctx.CleanDirectory(dotnetDir);
             ctx.DownloadZipFiles($"dotnet-runtime {BuildContext.DotnetRuntimeVersion}",
                                  ("dotnet runtime", BuildContext.DotnetRuntimeZipUrl, dotnetDir));
+        });
+
+        cache.Refresh("ResoniteModding/hookfxr", BuildContext.HookfxrVersion, () =>
+        {
+            ctx.Log.Information($"Downloading hookfxr {BuildContext.HookfxrVersion}");
+            var hookfxrDir = ctx.CacheDirectory.Combine("hookfxr");
+            ctx.CreateDirectory(hookfxrDir);
+            ctx.CleanDirectory(hookfxrDir);
+            ctx.DownloadZipFiles($"hookfxr {BuildContext.HookfxrVersion}",
+                                 ("hookfxr", BuildContext.HookfxrZipUrl, hookfxrDir));
         });
 
         cache.Save();
@@ -322,6 +335,34 @@ public sealed class MakeDistTask : FrostingTask<BuildContext>
                     {
                         ctx.Log.Warning($"NET.CoreCLR output directory not found: {netCoreCLRSource}");
                         ctx.Log.Warning("Make sure to build NET.CoreCLR target first if you want BepInEx support");
+                    }
+
+                    // Copy hookfxr files to root directory (excluding readme files)
+                    var hookfxrPath = ctx.CacheDirectory.Combine("hookfxr");
+                    if (ctx.DirectoryExists(hookfxrPath))
+                    {
+                        foreach (var filePath in ctx.GetFiles(hookfxrPath.Combine("*.*").FullPath))
+                        {
+                            var fileName = filePath.GetFilename().FullPath.ToLower();
+                            if (!fileName.EndsWith(".md"))
+                            {
+                                ctx.CopyFileToDirectory(filePath, targetDir);
+                            }
+                        }
+                        
+                        // Update hookfxr.ini to target BepisLoader.dll
+                        var hookfxrIniPath = targetDir.CombineWithFilePath("hookfxr.ini");
+                        if (ctx.FileExists(hookfxrIniPath))
+                        {
+                            var iniContent = System.IO.File.ReadAllText(hookfxrIniPath.FullPath);
+                            iniContent = iniContent.Replace("target_assembly=MyApplication.dll", "target_assembly=BepisLoader.dll");
+                            System.IO.File.WriteAllText(hookfxrIniPath.FullPath, iniContent);
+                            ctx.Log.Information("Updated hookfxr.ini to target BepisLoader.dll");
+                        }
+                    }
+                    else
+                    {
+                        ctx.Log.Warning($"hookfxr cache directory not found: {hookfxrPath}");
                     }
                 }
             }
