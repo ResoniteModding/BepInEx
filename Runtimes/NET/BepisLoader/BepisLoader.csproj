@@ -39,7 +39,8 @@
     </ItemGroup>
 
     <Target Name="RemoveExeAfterBuild" AfterTargets="Build">
-        <Delete Files="$(OutputPath)$(AssemblyName)$(ExecutableExtension)" />
+        <Delete Condition="Exists('$(TargetDir)$(AssemblyName).exe')" Files="$(TargetDir)$(AssemblyName).exe" />
+        <Delete Condition="Exists('$(TargetDir)$(AssemblyName)')"  Files="$(TargetDir)$(AssemblyName)" />
     </Target>
 
     <Import Project="..\BepInEx.NET.Shared\BepInEx.NET.Shared.projitems" Label="Shared"/>
