@@ -34,9 +34,6 @@ internal class BepisLoader
 
             alc = new BepisLoadContext();
 
-            // TODO: removing this breaks stuff, idk why
-            AppDomain.CurrentDomain.AssemblyResolve += ResolveGameDll;
-
             var bepinPath = Path.Combine(resoDir, "BepInEx");
             var bepinArg = Array.IndexOf(args.Select(x => x?.ToLowerInvariant()).ToArray(), "--bepinex-target");
             if (bepinArg != -1 && args.Length > bepinArg + 1)
