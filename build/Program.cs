@@ -258,15 +258,14 @@ public sealed class MakeDistTask : FrostingTask<BuildContext>
             ctx.CreateDirectory(bepInExDir.Combine("plugins"));
             ctx.CreateDirectory(bepInExDir.Combine("patchers"));
 
-            File.WriteAllText(targetDir.CombineWithFilePath("changelog.txt").FullPath, changelog);
-
             var sourceDirectory = ctx.OutputDirectory.Combine(dist.DistributionIdentifier);
             if (dist.FrameworkTarget != null)
                 sourceDirectory = sourceDirectory.Combine(dist.FrameworkTarget);
 
-            // Copy distribution files to BepInEx/core (except BepisLoader which goes to root)
             if (dist.Runtime != "BepisLoader")
             {
+                File.WriteAllText(targetDir.CombineWithFilePath("changelog.txt").FullPath, changelog);
+
                 foreach (var filePath in ctx.GetFiles(sourceDirectory.Combine("*.*").FullPath))
                     ctx.CopyFileToDirectory(filePath, bepInExCoreDir);
             }
@@ -356,6 +355,7 @@ public sealed class MakeDistTask : FrostingTask<BuildContext>
                         {
                             var iniContent = System.IO.File.ReadAllText(hookfxrIniPath.FullPath);
                             iniContent = iniContent.Replace("target_assembly=MyApplication.dll", "target_assembly=BepisLoader.dll");
+                            iniContent = iniContent.Replace("merge_deps_json=true", "merge_deps_json=false");
                             System.IO.File.WriteAllText(hookfxrIniPath.FullPath, iniContent);
                             ctx.Log.Information("Updated hookfxr.ini to target BepisLoader.dll");
                         }
