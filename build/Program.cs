@@ -35,7 +35,7 @@ public class BuildContext : FrostingContext
     public const string DoorstopVersion = "4.3.0";
     public const string DotnetRuntimeVersion = "6.0.7";
     public const string DobbyVersion = "1.0.5";
-    public const string HookfxrVersion = "1.0.0";
+    public const string HookfxrVersion = "1.1.0";
 
     public const string DotnetRuntimeZipUrl =
         $"https://github.com/BepInEx/dotnet-runtime/releases/download/{DotnetRuntimeVersion}/mini-coreclr-Release.zip";
@@ -55,7 +55,8 @@ public class BuildContext : FrostingContext
         //new("NET.Framework", "win-x86", "net452"),
         //new("NET.CoreCLR", "win-x64", "netcoreapp3.1"),
         //new("NET.CoreCLR", "win-x64", "net9.0"),
-        new("NET", "BepisLoader", "win-x64", "net9.0")
+        new("NET", "BepisLoader", "win-x64", "net9.0-windows"),
+        new("NET", "BepisLoader", "linux-x64", "net9.0")
     };
 
 
@@ -104,7 +105,7 @@ public class BuildContext : FrostingContext
         VersionPrefix + BuildType switch
         {
             ProjectBuildType.Release => "",
-            var _                    => $"-{VersionSuffix}+{this.GitShortenSha(RootDirectory, CurrentCommit)}",
+            var _ => $"-{VersionSuffix}+{this.GitShortenSha(RootDirectory, CurrentCommit)}",
         };
 
     public static string DoorstopZipUrl(string arch) =>
@@ -137,6 +138,8 @@ public sealed class CompileTask : FrostingTask<BuildContext>
 {
     public override void Run(BuildContext ctx)
     {
+        var hasBepisLoader = ctx.Distributions.Any(d => d.Runtime == "BepisLoader");
+
         var buildSettings = new DotNetBuildSettings
         {
             Configuration = "Release"
@@ -157,6 +160,51 @@ public sealed class CompileTask : FrostingTask<BuildContext>
         }
 
         ctx.DotNetBuild(ctx.RootDirectory.FullPath, buildSettings);
+
+        if (hasBepisLoader)
+        {
+            ctx.Log.Information("Publishing BepisLoader...");
+
+            var bepisLoaderDist = ctx.Distributions.First(d => d.Runtime == "BepisLoader");
+            var publishSettings = new Cake.Common.Tools.DotNet.Publish.DotNetPublishSettings
+            {
+                Configuration = "Release",
+                Framework = bepisLoaderDist.FrameworkTarget,
+                OutputDirectory = ctx.OutputDirectory.Combine("BepisLoader").Combine(bepisLoaderDist.FrameworkTarget),
+                PublishSingleFile = false,
+                PublishTrimmed = false,
+                NoBuild = true, // BepisLoader was already built in the solution build above
+                NoRestore = true // Also skip restore since it was done during build
+            };
+
+            if (ctx.BuildType != BuildContext.ProjectBuildType.Release)
+            {
+                publishSettings.MSBuildSettings = new()
+                {
+                    VersionSuffix = ctx.VersionSuffix,
+                    Properties =
+                    {
+                        ["SourceRevisionId"] = new[] { ctx.CurrentCommit.Sha },
+                        ["RepositoryBranch"] = new[] { ctx.GitBranchCurrent(ctx.RootDirectory).FriendlyName },
+                        ["DebugType"] = new[] { "full" },
+                        ["DebugSymbols"] = new[] { "true" },
+                        ["GeneratePackageOnBuild"] = new[] { "false" }
+                    }
+                };
+            }
+            else
+            {
+                publishSettings.MSBuildSettings = new()
+                {
+                    Properties =
+                    {
+                        ["GeneratePackageOnBuild"] = new[] { "false" }
+                    }
+                };
+            }
+
+            ctx.DotNetPublish(ctx.RootDirectory.Combine("Runtimes/NET/BepisLoader/BepisLoader.csproj").FullPath, publishSettings);
+        }
     }
 }
 
@@ -316,12 +364,6 @@ public sealed class MakeDistTask : FrostingTask<BuildContext>
                     foreach (var filePath in ctx.GetFiles(sourceDirectory.Combine("BepisLoader.*").FullPath))
                         ctx.CopyFileToDirectory(filePath, targetDir);
 
-                    var perfCounterPath = sourceDirectory.CombineWithFilePath("System.Diagnostics.PerformanceCounter.dll");
-                    if (ctx.FileExists(perfCounterPath))
-                    {
-                        ctx.CopyFileToDirectory(perfCounterPath, bepInExCoreDir);
-                    }
-
                     var netCoreCLRSource = ctx.OutputDirectory.Combine("NET.CoreCLR").Combine("net9.0");
                     if (ctx.DirectoryExists(netCoreCLRSource))
                     {
@@ -348,7 +390,7 @@ public sealed class MakeDistTask : FrostingTask<BuildContext>
                                 ctx.CopyFileToDirectory(filePath, targetDir);
                             }
                         }
-                        
+
                         // Update hookfxr.ini to target BepisLoader.dll
                         var hookfxrIniPath = targetDir.CombineWithFilePath("hookfxr.ini");
                         if (ctx.FileExists(hookfxrIniPath))

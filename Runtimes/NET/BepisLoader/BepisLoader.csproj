@@ -2,12 +2,13 @@
 
     <PropertyGroup>
         <Description>BepInEx support library for Resonite</Description>
-        <TargetFrameworks>net9.0</TargetFrameworks>
+        <TargetFrameworks>net9.0-windows;net9.0</TargetFrameworks>
         <OutputPath>$(BuildDir)/BepisLoader</OutputPath>
-        <OutputType>Exe</OutputType>
-        <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-        <AppendTargetFrameworkToOutputPath>true</AppendTargetFrameworkToOutputPath>
+        <OutputType>WinExe</OutputType>
+        <UseWindowsForms Condition="'$(TargetFramework)' == 'net9.0-windows'">true</UseWindowsForms>
         <Version>1.3.1</Version>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
     </PropertyGroup>
 
     <ItemGroup>
@@ -20,28 +21,17 @@
         <ProjectReference Include="..\..\..\Hardware.Info\Hardware.Info\Hardware.Info.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-        <ProjectReference Include="..\BepInEx.NET.Common\BepInEx.NET.Common.csproj">
-            <Private>false</Private>
-            <ExcludeAssets>runtime</ExcludeAssets>
-        </ProjectReference>
-        <ProjectReference Include="..\..\..\BepInEx.Preloader.Core\BepInEx.Preloader.Core.csproj">
-            <Private>false</Private>
-            <ExcludeAssets>runtime</ExcludeAssets>
-        </ProjectReference>
-
-        <!-- This needs to be referenced here, so that the .deps.json file doesn't include it -->
-        <!-- (Including a project reference like this makes it get removed from the json file) -->
-        <ProjectReference Include="..\..\..\BepInEx.Core\BepInEx.Core.csproj">
-            <Private>false</Private>
-            <ExcludeAssets>runtime</ExcludeAssets>
-        </ProjectReference>
-    </ItemGroup>
-
     <Target Name="RemoveExeAfterBuild" AfterTargets="Build">
         <Delete Condition="Exists('$(TargetDir)$(AssemblyName).exe')" Files="$(TargetDir)$(AssemblyName).exe" />
         <Delete Condition="Exists('$(TargetDir)$(AssemblyName)')"  Files="$(TargetDir)$(AssemblyName)" />
     </Target>
 
-    <Import Project="..\BepInEx.NET.Shared\BepInEx.NET.Shared.projitems" Label="Shared"/>
+    <Target Name="RemoveExeAfterPublish" AfterTargets="Publish">
+        <Delete Condition="Exists('$(PublishDir)$(AssemblyName).exe')" Files="$(PublishDir)$(AssemblyName).exe" />
+        <Delete Condition="Exists('$(PublishDir)$(AssemblyName)')"  Files="$(PublishDir)$(AssemblyName)" />
+    </Target>
+
+    <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true'">
+      <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    </PropertyGroup>
 </Project>
