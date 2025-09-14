@@ -427,10 +427,7 @@ public sealed class MakeDistTask : FrostingTask<BuildContext>
                         foreach (var filePath in ctx.GetFiles(netCoreCLRSource.Combine("*.*").FullPath))
                         {
                             var fileName = filePath.GetFilename().FullPath.ToLower();
-                            if (!fileName.EndsWith(".xml"))
-                            {
-                                ctx.CopyFileToDirectory(filePath, bepInExCoreDir);
-                            }
+                            ctx.CopyFileToDirectory(filePath, bepInExCoreDir);
                         }
                     }
                     else
