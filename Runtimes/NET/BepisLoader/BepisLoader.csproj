@@ -9,6 +9,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+        <DebugType>embedded</DebugType>
     </PropertyGroup>
 
     <ItemGroup>

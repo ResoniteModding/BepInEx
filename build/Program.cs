@@ -145,14 +145,14 @@ public sealed class RestoreToolsTask : FrostingTask<BuildContext>
     public override void Run(BuildContext ctx)
     {
         ctx.Log.Information("Restoring dotnet tools...");
-        
+
         var settings = new Cake.Common.Tools.DotNet.Tool.DotNetToolSettings
         {
             WorkingDirectory = ctx.RootDirectory
         };
-        
+
         ctx.DotNetTool("tool restore", settings);
-        
+
         ctx.Log.Information("Dotnet tools restored successfully.");
     }
 }
@@ -178,7 +178,7 @@ public sealed class CompileTask : FrostingTask<BuildContext>
                 {
                     ["SourceRevisionId"] = new[] { ctx.CurrentCommit.Sha },
                     ["RepositoryBranch"] = new[] { ctx.GitBranchCurrent(ctx.RootDirectory).FriendlyName },
-                    ["DebugType"] = new[] { "full" },
+                    ["DebugType"] = new[] { "embedded" },
                     ["DebugSymbols"] = new[] { "true" }
                 }
             };
@@ -209,7 +209,7 @@ public sealed class CompileTask : FrostingTask<BuildContext>
                     {
                         ["SourceRevisionId"] = new[] { ctx.CurrentCommit.Sha },
                         ["RepositoryBranch"] = new[] { ctx.GitBranchCurrent(ctx.RootDirectory).FriendlyName },
-                        ["DebugType"] = new[] { "full" },
+                        ["DebugType"] = new[] { "embedded" },
                         ["DebugSymbols"] = new[] { "true" },
                         ["GeneratePackageOnBuild"] = new[] { "false" }
                     }
@@ -324,10 +324,15 @@ public sealed class MakeDistTask : FrostingTask<BuildContext>
 
             var bepInExDir = targetDir.Combine("BepInEx");
             var bepInExCoreDir = bepInExDir.Combine("core");
-            ctx.CreateDirectory(bepInExDir);
-            ctx.CreateDirectory(bepInExCoreDir);
-            ctx.CreateDirectory(bepInExDir.Combine("plugins"));
-            ctx.CreateDirectory(bepInExDir.Combine("patchers"));
+
+            // Only create BepInEx directories for non-BepisLoader distributions
+            if (dist.Runtime != "BepisLoader")
+            {
+                ctx.CreateDirectory(bepInExDir);
+                ctx.CreateDirectory(bepInExCoreDir);
+                ctx.CreateDirectory(bepInExDir.Combine("plugins"));
+                ctx.CreateDirectory(bepInExDir.Combine("patchers"));
+            }
 
             var sourceDirectory = ctx.OutputDirectory.Combine(dist.DistributionIdentifier);
             if (dist.FrameworkTarget != null)
@@ -338,7 +343,14 @@ public sealed class MakeDistTask : FrostingTask<BuildContext>
                 File.WriteAllText(targetDir.CombineWithFilePath("changelog.txt").FullPath, changelog);
 
                 foreach (var filePath in ctx.GetFiles(sourceDirectory.Combine("*.*").FullPath))
-                    ctx.CopyFileToDirectory(filePath, bepInExCoreDir);
+                {
+                    var fileName = filePath.GetFilename().FullPath.ToLower();
+                    // Skip XML documentation files
+                    if (!fileName.EndsWith(".xml"))
+                    {
+                        ctx.CopyFileToDirectory(filePath, bepInExCoreDir);
+                    }
+                }
             }
 
             if (dist.Engine == "Unity")
@@ -385,12 +397,12 @@ public sealed class MakeDistTask : FrostingTask<BuildContext>
                 else if (dist.Runtime == "BepisLoader")
                 {
                     foreach (var filePath in ctx.GetFiles(sourceDirectory.Combine("BepisLoader.*").FullPath))
-                        ctx.CopyFileToDirectory(filePath, targetDir);
-
-                    var perfCounterPath = sourceDirectory.CombineWithFilePath("System.Diagnostics.PerformanceCounter.dll");
-                    if (ctx.FileExists(perfCounterPath))
                     {
-                        ctx.CopyFileToDirectory(perfCounterPath, bepInExCoreDir);
+                        var fileName = filePath.GetFilename().FullPath.ToLower();
+                        if (!fileName.EndsWith(".xml"))
+                        {
+                            ctx.CopyFileToDirectory(filePath, targetDir);
+                        }
                     }
 
                     // Copy LinuxBootstrap.sh from BepisLoader project directory
@@ -408,9 +420,17 @@ public sealed class MakeDistTask : FrostingTask<BuildContext>
                     var netCoreCLRSource = ctx.OutputDirectory.Combine("NET.CoreCLR").Combine("net9.0");
                     if (ctx.DirectoryExists(netCoreCLRSource))
                     {
+                        // Create BepInEx directories only if we have files to copy
+                        ctx.CreateDirectory(bepInExDir);
+                        ctx.CreateDirectory(bepInExCoreDir);
+
                         foreach (var filePath in ctx.GetFiles(netCoreCLRSource.Combine("*.*").FullPath))
                         {
-                            ctx.CopyFileToDirectory(filePath, bepInExCoreDir);
+                            var fileName = filePath.GetFilename().FullPath.ToLower();
+                            if (!fileName.EndsWith(".xml"))
+                            {
+                                ctx.CopyFileToDirectory(filePath, bepInExCoreDir);
+                            }
                         }
                     }
                     else
@@ -419,14 +439,14 @@ public sealed class MakeDistTask : FrostingTask<BuildContext>
                         ctx.Log.Warning("Make sure to build NET.CoreCLR target first if you want BepInEx support");
                     }
 
-                    // Copy hookfxr files to root directory (excluding readme files)
+                    // Copy hookfxr files to root directory (excluding readme files and pdb files)
                     var hookfxrPath = ctx.CacheDirectory.Combine("hookfxr");
                     if (ctx.DirectoryExists(hookfxrPath))
                     {
                         foreach (var filePath in ctx.GetFiles(hookfxrPath.Combine("*.*").FullPath))
                         {
                             var fileName = filePath.GetFilename().FullPath.ToLower();
-                            if (!fileName.EndsWith(".md"))
+                            if (!fileName.EndsWith(".md") && !fileName.EndsWith(".pdb"))
                             {
                                 ctx.CopyFileToDirectory(filePath, targetDir);
                             }
@@ -448,6 +468,36 @@ public sealed class MakeDistTask : FrostingTask<BuildContext>
                     {
                         ctx.Log.Warning($"hookfxr cache directory not found: {hookfxrPath}");
                     }
+
+                    // Replace contents of BepisLoader.runtimeconfig.json with the proper framework configuration for windows
+                    var runtimeConfigPath = targetDir.CombineWithFilePath("BepisLoader.runtimeconfig.json");
+                    if (ctx.FileExists(runtimeConfigPath))
+                    {
+                        var runtimeConfig = new Dictionary<string, object>
+                        {
+                            ["runtimeOptions"] = new Dictionary<string, object>
+                            {
+                                ["tfm"] = "net9.0",
+                                ["frameworks"] = new[]
+                                {
+                                    new Dictionary<string, string> { ["name"] = "Microsoft.NETCore.App", ["version"] = "9.0.0" },
+                                    new Dictionary<string, string> { ["name"] = "Microsoft.WindowsDesktop.App", ["version"] = "9.0.0" }
+                                },
+                                ["configProperties"] = new Dictionary<string, object>
+                                {
+                                    ["System.Reflection.Metadata.MetadataUpdater.IsSupported"] = false,
+                                    ["System.Runtime.Serialization.EnableUnsafeBinaryFormatterSerialization"] = false
+                                }
+                            }
+                        };
+                        ctx.SerializeJsonToPrettyFile(runtimeConfigPath, runtimeConfig);
+                        ctx.Log.Information("Updated BepisLoader.runtimeconfig.json with proper framework configuration");
+                    }
+                    else
+                    {
+                        ctx.Log.Warning($"BepisLoader.runtimeconfig.json not found at: {runtimeConfigPath}");
+                    }
+
                 }
             }
         }
