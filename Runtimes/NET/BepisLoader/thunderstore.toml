@@ -7,20 +7,21 @@ schemaVersion = "0.0.1"
 namespace = "ResoniteModding"
 name = "BepisLoader"
 versionNumber = "1.3.1"
-description = "App which allows using BepInEx with Resonite"
+description = "A mod loader which allows using BepInEx with Resonite"
 websiteUrl = "https://github.com/ResoniteModding/BepInEx/tree/master/Runtimes/NET/BepisLoader"
 containsNsfwContent = false
 
 [package.dependencies]
+ResoniteModding-BepInExResoniteShim = "0.8.2"
 
 [build]
 icon = "./icon.png"
 readme = "./README.md"
-outdir = "./thunderstore-build"
+outdir = "../../../bin/dist/thunderstore-package"
 
 # Copy the compiled DLL to the plugins folder in the mod package
 [[build.copy]]
-source = "./bin/dist/BepisLoader-win-x64"
+source = "../../../bin/dist/BepisLoader-win-x64"
 target = "/BepInExPack/"
 
 # Uncomment the following lines to include CHANGELOG file in your mod package. https://wiki.thunderstore.io/mods/updating-a-package#changelog
@@ -35,4 +36,6 @@ target = "/"
 [publish]
 repository = "https://thunderstore.io"
 communities = ["resonite"]
-categories = [ "Libraries" ] # TODO: Change this to your mod's categories, see https://thunderstore.io/api/experimental/community/resonite/category/ for a list of available categories
+
+[publish.categories]
+resonite = ["libraries"]
