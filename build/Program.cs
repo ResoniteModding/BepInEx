@@ -19,9 +19,15 @@ using Cake.Json;
 using Microsoft.Build.Definition;
 using Microsoft.Build.Evaluation;
 
-return new CakeHost()
-       .UseContext<BuildContext>()
-       .Run(args);
+public static class Program
+{
+    public static int Main(string[] args)
+    {
+        return new CakeHost()
+               .UseContext<BuildContext>()
+               .Run(args);
+    }
+}
 
 public class BuildContext : FrostingContext
 {
@@ -32,13 +38,13 @@ public class BuildContext : FrostingContext
         BleedingEdge
     }
 
-    public const string DoorstopVersion = "4.3.0";
-    public const string DotnetRuntimeVersion = "6.0.7";
-    public const string DobbyVersion = "1.0.5";
-    public const string HookfxrVersion = "1.1.0";
+    public const string DOORSTOP_VERSION = "4.3.0";
+    public const string DOTNET_RUNTIME_VERSION = "6.0.7";
+    public const string DOBBY_VERSION = "1.0.5";
+    public const string HOOKFXR_VERSION = "1.1.0";
 
-    public const string DotnetRuntimeZipUrl =
-        $"https://github.com/BepInEx/dotnet-runtime/releases/download/{DotnetRuntimeVersion}/mini-coreclr-Release.zip";
+    public const string DOTNET_RUNTIME_ZIP_URL =
+        $"https://github.com/BepInEx/dotnet-runtime/releases/download/{DOTNET_RUNTIME_VERSION}/mini-coreclr-Release.zip";
 
     internal readonly DistributionTarget[] Distributions =
     {
@@ -55,8 +61,8 @@ public class BuildContext : FrostingContext
         //new("NET.Framework", "win-x86", "net452"),
         //new("NET.CoreCLR", "win-x64", "netcoreapp3.1"),
         //new("NET.CoreCLR", "win-x64", "net9.0"),
-        new("NET", "BepisLoader", "win-x64", "net9.0-windows"),
-        new("NET", "BepisLoader", "linux-x64", "net9.0")
+        new("NET", "BepisLoader", "win-x64", "net9.0-windows")
+        // new("NET", "BepisLoader", "linux-x64", "net9.0")
     };
 
 
@@ -109,12 +115,12 @@ public class BuildContext : FrostingContext
         };
 
     public static string DoorstopZipUrl(string arch) =>
-        $"https://github.com/NeighTools/UnityDoorstop/releases/download/v{DoorstopVersion}/doorstop_{arch}_release_{DoorstopVersion}.zip";
+        $"https://github.com/NeighTools/UnityDoorstop/releases/download/v{DOORSTOP_VERSION}/doorstop_{arch}_release_{DOORSTOP_VERSION}.zip";
 
     public static string DobbyZipUrl(string arch) =>
-        $"https://github.com/BepInEx/Dobby/releases/download/v{DobbyVersion}/dobby-{arch}.zip";
+        $"https://github.com/BepInEx/Dobby/releases/download/v{DOBBY_VERSION}/dobby-{arch}.zip";
 
-    public static string HookfxrZipUrl = $"https://github.com/ResoniteModding/hookfxr/releases/download/v{HookfxrVersion}/hookfxr-Release.zip";
+    public static string HookfxrZipUrl = $"https://github.com/ResoniteModding/hookfxr/releases/download/v{HOOKFXR_VERSION}/hookfxr-Release.zip";
 }
 
 [TaskName("Clean")]
@@ -218,9 +224,9 @@ public sealed class DownloadDependenciesTask : FrostingTask<BuildContext>
 
         var cache = new DependencyCache(ctx, ctx.CacheDirectory.CombineWithFilePath("cache.json"));
 
-        cache.Refresh("NeighTools/UnityDoorstop", BuildContext.DoorstopVersion, () =>
+        cache.Refresh("NeighTools/UnityDoorstop", BuildContext.DOORSTOP_VERSION, () =>
         {
-            ctx.Log.Information($"Downloading Doorstop {BuildContext.DoorstopVersion}");
+            ctx.Log.Information($"Downloading Doorstop {BuildContext.DOORSTOP_VERSION}");
             var doorstopDir = ctx.CacheDirectory.Combine("doorstop");
             ctx.CreateDirectory(doorstopDir);
             ctx.CleanDirectory(doorstopDir);
@@ -230,12 +236,12 @@ public sealed class DownloadDependenciesTask : FrostingTask<BuildContext>
                                          BuildContext.DoorstopZipUrl(a),
                                          doorstopDir.Combine($"doorstop_{a}")))
                            .ToArray();
-            ctx.DownloadZipFiles($"Doorstop {BuildContext.DoorstopVersion}", versions);
+            ctx.DownloadZipFiles($"Doorstop {BuildContext.DOORSTOP_VERSION}", versions);
         });
 
-        cache.Refresh("BepInEx/Dobby", BuildContext.DobbyVersion, () =>
+        cache.Refresh("BepInEx/Dobby", BuildContext.DOBBY_VERSION, () =>
         {
-            ctx.Log.Information($"Downloading Dobby {BuildContext.DobbyVersion}");
+            ctx.Log.Information($"Downloading Dobby {BuildContext.DOBBY_VERSION}");
             var dobbyDir = ctx.CacheDirectory.Combine("dobby");
             ctx.CreateDirectory(dobbyDir);
             ctx.CleanDirectory(dobbyDir);
@@ -243,26 +249,26 @@ public sealed class DownloadDependenciesTask : FrostingTask<BuildContext>
             var versions = archs
                            .Select(a => ($"Dobby ({a})", BuildContext.DobbyZipUrl(a), dobbyDir.Combine($"dobby_{a}")))
                            .ToArray();
-            ctx.DownloadZipFiles($"Dobby {BuildContext.DobbyVersion}", versions);
+            ctx.DownloadZipFiles($"Dobby {BuildContext.DOBBY_VERSION}", versions);
         });
 
-        cache.Refresh("BepInEx/dotnet_runtime", BuildContext.DotnetRuntimeVersion, () =>
+        cache.Refresh("BepInEx/dotnet_runtime", BuildContext.DOTNET_RUNTIME_VERSION, () =>
         {
-            ctx.Log.Information($"Downloading dotnet runtime {BuildContext.DotnetRuntimeVersion}");
+            ctx.Log.Information($"Downloading dotnet runtime {BuildContext.DOTNET_RUNTIME_VERSION}");
             var dotnetDir = ctx.CacheDirectory.Combine("dotnet");
             ctx.CreateDirectory(dotnetDir);
             ctx.CleanDirectory(dotnetDir);
-            ctx.DownloadZipFiles($"dotnet-runtime {BuildContext.DotnetRuntimeVersion}",
-                                 ("dotnet runtime", BuildContext.DotnetRuntimeZipUrl, dotnetDir));
+            ctx.DownloadZipFiles($"dotnet-runtime {BuildContext.DOTNET_RUNTIME_VERSION}",
+                                 ("dotnet runtime", BuildContext.DOTNET_RUNTIME_ZIP_URL, dotnetDir));
         });
 
-        cache.Refresh("ResoniteModding/hookfxr", BuildContext.HookfxrVersion, () =>
+        cache.Refresh("ResoniteModding/hookfxr", BuildContext.HOOKFXR_VERSION, () =>
         {
-            ctx.Log.Information($"Downloading hookfxr {BuildContext.HookfxrVersion}");
+            ctx.Log.Information($"Downloading hookfxr {BuildContext.HOOKFXR_VERSION}");
             var hookfxrDir = ctx.CacheDirectory.Combine("hookfxr");
             ctx.CreateDirectory(hookfxrDir);
             ctx.CleanDirectory(hookfxrDir);
-            ctx.DownloadZipFiles($"hookfxr {BuildContext.HookfxrVersion}",
+            ctx.DownloadZipFiles($"hookfxr {BuildContext.HOOKFXR_VERSION}",
                                  ("hookfxr", BuildContext.HookfxrZipUrl, hookfxrDir));
         });
 
