@@ -396,6 +396,7 @@ public sealed class MakeDistTask : FrostingTask<BuildContext>
                         if (ctx.FileExists(hookfxrIniPath))
                         {
                             var iniContent = System.IO.File.ReadAllText(hookfxrIniPath.FullPath);
+                            iniContent = iniContent.Replace("enable=true", "enable=false");
                             iniContent = iniContent.Replace("target_assembly=MyApplication.dll", "target_assembly=BepisLoader.dll");
                             iniContent = iniContent.Replace("merge_deps_json=true", "merge_deps_json=false");
                             System.IO.File.WriteAllText(hookfxrIniPath.FullPath, iniContent);
