@@ -61,7 +61,7 @@ public class BuildContext : FrostingContext
         //new("NET.Framework", "win-x86", "net452"),
         //new("NET.CoreCLR", "win-x64", "netcoreapp3.1"),
         //new("NET.CoreCLR", "win-x64", "net9.0"),
-        new("NET", "BepisLoader", "win-x64", "net9.0-windows"),
+        new("NET", "BepisLoader", "win-x64", "net9.0"),
         // new("NET", "BepisLoader", "linux-x64", "net9.0")
     };
 
@@ -138,8 +138,27 @@ public sealed class CleanTask : FrostingTask<BuildContext>
     }
 }
 
-[TaskName("Compile")]
+[TaskName("RestoreTools")]
 [IsDependentOn(typeof(CleanTask))]
+public sealed class RestoreToolsTask : FrostingTask<BuildContext>
+{
+    public override void Run(BuildContext ctx)
+    {
+        ctx.Log.Information("Restoring dotnet tools...");
+        
+        var settings = new Cake.Common.Tools.DotNet.Tool.DotNetToolSettings
+        {
+            WorkingDirectory = ctx.RootDirectory
+        };
+        
+        ctx.DotNetTool("tool restore", settings);
+        
+        ctx.Log.Information("Dotnet tools restored successfully.");
+    }
+}
+
+[TaskName("Compile")]
+[IsDependentOn(typeof(RestoreToolsTask))]
 public sealed class CompileTask : FrostingTask<BuildContext>
 {
     public override void Run(BuildContext ctx)
@@ -178,9 +197,7 @@ public sealed class CompileTask : FrostingTask<BuildContext>
                 Framework = bepisLoaderDist.FrameworkTarget,
                 OutputDirectory = ctx.OutputDirectory.Combine("BepisLoader").Combine(bepisLoaderDist.FrameworkTarget),
                 PublishSingleFile = false,
-                PublishTrimmed = false,
-                NoBuild = true, // BepisLoader was already built in the solution build above
-                NoRestore = true // Also skip restore since it was done during build
+                PublishTrimmed = false
             };
 
             if (ctx.BuildType != BuildContext.ProjectBuildType.Release)
@@ -369,6 +386,12 @@ public sealed class MakeDistTask : FrostingTask<BuildContext>
                 {
                     foreach (var filePath in ctx.GetFiles(sourceDirectory.Combine("BepisLoader.*").FullPath))
                         ctx.CopyFileToDirectory(filePath, targetDir);
+
+                    var perfCounterPath = sourceDirectory.CombineWithFilePath("System.Diagnostics.PerformanceCounter.dll");
+                    if (ctx.FileExists(perfCounterPath))
+                    {
+                        ctx.CopyFileToDirectory(perfCounterPath, bepInExCoreDir);
+                    }
 
                     // Copy LinuxBootstrap.sh from BepisLoader project directory
                     var linuxBootstrapPath = ctx.RootDirectory.CombineWithFilePath("Runtimes/NET/BepisLoader/LinuxBootstrap.sh");
