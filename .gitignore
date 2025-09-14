@@ -289,6 +289,3 @@ __pycache__/
 
 # Cake binaries
 tools/
-
-# Thunderstore build output
-thunderstore-build/
