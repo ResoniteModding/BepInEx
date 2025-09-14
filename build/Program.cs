@@ -470,24 +470,28 @@ public sealed class MakeDistTask : FrostingTask<BuildContext>
                     var runtimeConfigPath = targetDir.CombineWithFilePath("BepisLoader.runtimeconfig.json");
                     if (ctx.FileExists(runtimeConfigPath))
                     {
-                        var runtimeConfig = new Dictionary<string, object>
-                        {
-                            ["runtimeOptions"] = new Dictionary<string, object>
+                        var runtimeConfig = """
                             {
-                                ["tfm"] = "net9.0",
-                                ["frameworks"] = new[]
-                                {
-                                    new Dictionary<string, string> { ["name"] = "Microsoft.NETCore.App", ["version"] = "9.0.0" },
-                                    new Dictionary<string, string> { ["name"] = "Microsoft.WindowsDesktop.App", ["version"] = "9.0.0" }
-                                },
-                                ["configProperties"] = new Dictionary<string, object>
-                                {
-                                    ["System.Reflection.Metadata.MetadataUpdater.IsSupported"] = false,
-                                    ["System.Runtime.Serialization.EnableUnsafeBinaryFormatterSerialization"] = false
+                              "runtimeOptions": {
+                                "tfm": "net9.0",
+                                "frameworks": [
+                                  {
+                                    "name": "Microsoft.NETCore.App",
+                                    "version": "9.0.0"
+                                  },
+                                  {
+                                    "name": "Microsoft.WindowsDesktop.App",
+                                    "version": "9.0.0"
+                                  }
+                                ],
+                                "configProperties": {
+                                  "System.Reflection.Metadata.MetadataUpdater.IsSupported": false,
+                                  "System.Runtime.Serialization.EnableUnsafeBinaryFormatterSerialization": false
                                 }
+                              }
                             }
-                        };
-                        ctx.SerializeJsonToPrettyFile(runtimeConfigPath, runtimeConfig);
+                            """;
+                        System.IO.File.WriteAllText(runtimeConfigPath.FullPath, runtimeConfig);
                         ctx.Log.Information("Updated BepisLoader.runtimeconfig.json with proper framework configuration");
                     }
                     else
