@@ -10,6 +10,7 @@ using Cake.Common.IO;
 using Cake.Common.Tools.DotNet;
 using Cake.Common.Tools.DotNet.Build;
 using Cake.Common.Tools.DotNet.NuGet.Push;
+using Cake.Common.Xml;
 using Cake.Core;
 using Cake.Core.Diagnostics;
 using Cake.Core.IO;
@@ -42,7 +43,6 @@ public class BuildContext : FrostingContext
     public const string DOTNET_RUNTIME_VERSION = "6.0.7";
     public const string DOBBY_VERSION = "1.0.5";
     public const string HOOKFXR_VERSION = "1.1.0";
-
     public const string DOTNET_RUNTIME_ZIP_URL =
         $"https://github.com/BepInEx/dotnet-runtime/releases/download/{DOTNET_RUNTIME_VERSION}/mini-coreclr-Release.zip";
 
@@ -61,7 +61,7 @@ public class BuildContext : FrostingContext
         //new("NET.Framework", "win-x86", "net452"),
         //new("NET.CoreCLR", "win-x64", "netcoreapp3.1"),
         //new("NET.CoreCLR", "win-x64", "net9.0"),
-        new("NET", "BepisLoader", "win-x64", "net9.0-windows")
+        new("NET", "BepisLoader", "win-x64", "net9.0-windows"),
         // new("NET", "BepisLoader", "linux-x64", "net9.0")
     };
 
@@ -101,10 +101,10 @@ public class BuildContext : FrostingContext
 
     public string VersionSuffix => BuildType switch
     {
-        ProjectBuildType.Release      => "",
-        ProjectBuildType.Development  => "dev",
+        ProjectBuildType.Release => "",
+        ProjectBuildType.Development => "dev",
         ProjectBuildType.BleedingEdge => $"be.{BuildId}",
-        var _                         => throw new ArgumentOutOfRangeException()
+        var _ => throw new ArgumentOutOfRangeException()
     };
 
     public string BuildPackageVersion =>
@@ -370,6 +370,18 @@ public sealed class MakeDistTask : FrostingTask<BuildContext>
                     foreach (var filePath in ctx.GetFiles(sourceDirectory.Combine("BepisLoader.*").FullPath))
                         ctx.CopyFileToDirectory(filePath, targetDir);
 
+                    // Copy LinuxBootstrap.sh from BepisLoader project directory
+                    var linuxBootstrapPath = ctx.RootDirectory.CombineWithFilePath("Runtimes/NET/BepisLoader/LinuxBootstrap.sh");
+                    if (ctx.FileExists(linuxBootstrapPath))
+                    {
+                        ctx.CopyFileToDirectory(linuxBootstrapPath, targetDir);
+                        ctx.Log.Information("Copied LinuxBootstrap.sh to distribution");
+                    }
+                    else
+                    {
+                        ctx.Log.Warning("LinuxBootstrap.sh not found at: " + linuxBootstrapPath);
+                    }
+
                     var netCoreCLRSource = ctx.OutputDirectory.Combine("NET.CoreCLR").Combine("net9.0");
                     if (ctx.DirectoryExists(netCoreCLRSource))
                     {
@@ -438,9 +450,48 @@ public sealed class PushNuGetTask : FrostingTask<BuildContext>
     }
 }
 
+[TaskName("BuildThunderstorePackage")]
+[IsDependentOn(typeof(MakeDistTask))]
+public sealed class BuildThunderstorePackageTask : FrostingTask<BuildContext>
+{
+    public override bool ShouldRun(BuildContext ctx) => ctx.Distributions.Any(d => d.Runtime == "BepisLoader");
+
+    public override void Run(BuildContext ctx)
+    {
+        ctx.Log.Information("Building Thunderstore package for BepisLoader...");
+
+        var bepisLoaderProjectPath = ctx.RootDirectory.CombineWithFilePath("Runtimes/NET/BepisLoader/BepisLoader.csproj");
+
+        // Use XmlPeek to read version from csproj (simpler than MSBuild Project)
+        var packageVersion = ctx.XmlPeek(bepisLoaderProjectPath, "/Project/PropertyGroup/Version");
+
+        if (string.IsNullOrEmpty(packageVersion))
+        {
+            throw new Exception("Could not read Version property from BepisLoader.csproj");
+        }
+
+        ctx.Log.Information($"Building Thunderstore package with version {packageVersion}...");
+
+        var exitCode = ctx.StartProcess("dotnet", new Cake.Core.IO.ProcessSettings
+        {
+            Arguments = $"tcli build --package-version {packageVersion}",
+            WorkingDirectory = ctx.RootDirectory.Combine("Runtimes/NET/BepisLoader")
+        });
+
+        if (exitCode != 0)
+        {
+            ctx.Log.Error($"dotnet tcli build failed with exit code {exitCode}");
+            throw new Exception($"Thunderstore package build failed with exit code {exitCode}");
+        }
+
+        ctx.Log.Information("Thunderstore package build completed successfully.");
+    }
+}
+
 [TaskName("Publish")]
 [IsDependentOn(typeof(MakeDistTask))]
 [IsDependentOn(typeof(PushNuGetTask))]
+[IsDependentOn(typeof(BuildThunderstorePackageTask))]
 public sealed class PublishTask : FrostingTask<BuildContext>
 {
     public override void Run(BuildContext ctx)
