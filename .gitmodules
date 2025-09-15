@@ -4,4 +4,5 @@
 	branch = patchy
 [submodule "Hardware.Info"]
 	path = Hardware.Info
-	url = https://github.com/art0007i/Hardware.Info
+	url = https://github.com/ResoniteModding/Hardware.Info.git
+	branch = patchy
