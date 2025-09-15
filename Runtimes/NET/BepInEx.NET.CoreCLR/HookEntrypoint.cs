@@ -50,10 +50,7 @@ public class StartupHook
 
             string bepinexCoreDirectory = Path.Combine(bepinRootPath, "core");
 
-            if (bepinRootPath != null)
-                bepinexCoreDirectory = Path.Combine(bepinRootPath, "core");
-
-            if (bepinexCoreDirectory == null && gameDirectory != null)
+            if (gameDirectory != null && bepinexCoreDirectory == null)
                 bepinexCoreDirectory = Path.Combine(gameDirectory, "BepInEx", "core");
 
             if (assemblyFilename == null || gameDirectory == null || !Directory.Exists(bepinexCoreDirectory))
