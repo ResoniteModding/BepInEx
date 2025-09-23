@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
@@ -31,20 +30,6 @@ public class BepisLoader
 
         var asm = alc.LoadFromAssemblyPath(Path.Combine(bepinPath, "core", "BepInEx.NET.CoreCLR.dll"));
 
-        // Check if we're launching from outside the game directory
-        var exePath = Process.GetCurrentProcess().MainModule?.FileName;
-        if (exePath != null)
-        {
-            var exeDir = Path.GetDirectoryName(exePath);
-            if (exeDir != resoDir)
-            {
-                // Change working directory to the game directory for direct launches
-                Log($"Changing working directory from {resoDir} to {exeDir}");
-                Directory.SetCurrentDirectory(exeDir);
-                resoDir = exeDir;
-            }
-        }
-
         var resoDllPath = Path.Combine(resoDir, "Renderite.Host.dll");
         if (!File.Exists(resoDllPath)) resoDllPath = Path.Combine(resoDir, "Resonite.dll");
 
@@ -53,8 +38,8 @@ public class BepisLoader
         m.Invoke(null, [resoDllPath, bepinPath, alc]);
 
         // Find and load Resonite
-        var resoAsm = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(x => x.GetName().Name == "Renderite.Host");
-        if (resoAsm == null && File.Exists(resoDllPath))
+        var resoAsm = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(x => x.GetName().Name == "Resonite");
+        if (resoAsm == null)
         {
             resoAsm = alc.LoadFromAssemblyPath(resoDllPath);
         }
