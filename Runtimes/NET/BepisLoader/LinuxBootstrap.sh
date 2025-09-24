@@ -110,10 +110,56 @@ main()
 		EOF
 	fi
 
+	echo "Parsing hookfxr parameters"
+	HOOKFXR_STATUS=""
+	TARGET_ASSEMBLY=""
+
+	# CLI arg takes priority
+	for arg in "$@" ; do
+		if [ "$arg" = "--hookfxr-enable" ] ; then
+			HOOKFXR_STATUS="ENABLED"
+			echo "hookfxr is enabled by CLI"
+		fi
+		if [ "$arg" = "--hookfxr-disable" ] ; then
+			HOOKFXR_STATUS="DISABLED"
+			echo "hookfxr is disabled by CLI"
+		fi
+		TARGET_ARG=${arg#"--hookfxr-target="}
+		if [ ! "$arg" = "$TARGET_ARG" ] ; then
+			TARGET_ASSEMBLY="$TARGET_ARG"
+			echo "hookfxr target forced to $TARGET_ASSEMBLY by CLI"
+		fi
+	done
+
+	# If not specified in CLI args, check INI
+	if [ -z $HOOKFXR_STATUS ] ; then
+		if grep -q "enable=true" hookfxr.ini ; then
+			HOOKFXR_STATUS="ENABLED"
+			echo "hookfxr is enabled by INI"
+		fi
+		if grep -q "enable=false" hookfxr.ini ; then
+			HOOKFXR_STATUS="DISABLED"
+			echo "hookfxr is disabled by INI"
+		fi		
+	fi
+	
+	ENTRY_POINT="Renderite.Host.dll"
+
+	# If hookfxr is enabled, change the entry point
+	if [ "$HOOKFXR_STATUS" = "ENABLED" ] ; then
+		# Only read from INI if it was not already found in CLI
+		if [ -z $TARGET_ASSEMBLY ]; then
+			TARGET_ASSEMBLY=$(sed -n "s/^\s*target_assembly=\(.*\S\)\s*$/\1/p" hookfxr.ini)
+		fi
+
+		if [ -n $TARGET_ASSEMBLY ]; then
+			ENTRY_POINT="$TARGET_ASSEMBLY"
+		fi
+	fi
+	echo "Entry point: $ENTRY_POINT"
 
 	# ~ Launch Resonite! :) ~
-
-	dotnet BepisLoader.dll "$@"
+	exec "$DOTNET_EXECUTABLE" "$ENTRY_POINT" "$@"
 }
 
 main "$@"
