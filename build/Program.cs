@@ -587,9 +587,9 @@ public sealed class PublishTask : FrostingTask<BuildContext>
         {
             var targetZipName = $"BepInEx-{dist.Target}-{ctx.BuildPackageVersion}.zip";
             ctx.Log.Information($"Packing {targetZipName}");
-            ctx.Zip(ctx.DistributionDirectory.Combine(dist.Target),
-                    ctx.DistributionDirectory
-                       .CombineWithFilePath(targetZipName));
+            // https://github.com/cake-build/cake/issues/2592
+            System.IO.Compression.ZipFile.CreateFromDirectory(ctx.DistributionDirectory.Combine(dist.Target).FullPath,
+                    ctx.DistributionDirectory.CombineWithFilePath(targetZipName).FullPath);
         }
 
 
