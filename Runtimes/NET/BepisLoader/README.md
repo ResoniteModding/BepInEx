@@ -11,9 +11,10 @@ A mod loader which allows using BepInEx with [Resonite](https://resonite.com/).
    - **Linux Default:** `~/.steam/steam/steamapps/common/Resonite/`
 3. **Linux Users Only:** The included `LinuxBootstrap.sh` file needs to be used instead of the default one:
    - The package includes a modified `LinuxBootstrap.sh` that launches `BepisLoader.dll` instead of `Renderite.Host.dll`
-   - Due to limitations of the ZIP format, the script will not be executable when you first setup the plugin.
-     You will need to run `chmod +x LinuxBootstrap.sh` in your Resonite profile folder in order to fix this manually.
+   - Currently, the script might not be executable when you first setup the plugin.
+     If that is the case, you need to run `chmod +x LinuxBootstrap.sh` in your Resonite profile folder in order to fix this manually.
    - **Important:** Resonite updates could replace this file, breaking the mod loader. If this happens, you'll need to manually replace `LinuxBootstrap.sh` with the one from the BepisLoader package.
+     - Some mod managers - including Gale - will copy the script from their managed profile folder to the Resonite install directory on every game launch. In which case, you do not need to replace it manually.
 4. Enable the modded entry point by replacing `enable=false` with `enable=true` in the file `hookfxr.ini`
    - Alternatively, add `--hookfxr-enable` to your launch arguments. 
 5. Start the game normally.

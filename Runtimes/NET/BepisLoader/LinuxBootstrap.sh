@@ -58,15 +58,6 @@ RENDERER_SCRIPT="Renderer/Renderite.Renderer.sh"
 # 	# "$*" 2>/dev/null
 # }
 
-# Overload the 'dotnet' command so that it calls the version which was
-# downloaded by the script rather than potentially call (or fail to call)
-# the system's main dotnet runtime.
-
-dotnet()
-{
-	"$DOTNET_EXECUTABLE" "$@"
-}
-
 main()
 {
 	# Make sure the dotnet installer is executable, grab the .NET 9.0 runtime and
