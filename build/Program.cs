@@ -595,7 +595,7 @@ public sealed class FixThunderstoreLinuxPermissionsTask : FrostingTask<BuildCont
         {
             ctx.Log.Information($"Fixing Linux permissions in {packageFile.GetFilename()}...");
 
-            var tempDir = ctx.OutputDirectory.Combine("temp-thunderstore-fix");
+            var tempDir = ctx.DistributionDirectory.Combine("temp-thunderstore-fix");
             if (ctx.DirectoryExists(tempDir))
             {
                 ctx.CleanDirectory(tempDir);
@@ -611,7 +611,7 @@ public sealed class FixThunderstoreLinuxPermissionsTask : FrostingTask<BuildCont
                                        System.IO.UnixFileMode.GroupExecute |
                                        System.IO.UnixFileMode.OtherExecute;
 
-            var executableFiles = new[] { "LinuxBootstrap.sh", "BepisLoader.dll" };
+            var executableFiles = new[] { "LinuxBootstrap.sh" };
 
             foreach (var fileName in executableFiles)
             {
@@ -632,8 +632,6 @@ public sealed class FixThunderstoreLinuxPermissionsTask : FrostingTask<BuildCont
             ctx.DeleteFile(packageFile);
 
             System.IO.Compression.ZipFile.CreateFromDirectory(tempDir.FullPath, packageFile.FullPath);
-
-            ctx.DeleteDirectory(tempDir, new Cake.Common.IO.DeleteDirectorySettings { Recursive = true });
 
             ctx.Log.Information($"Fixed Linux permissions in {packageFile.GetFilename()}");
         }
