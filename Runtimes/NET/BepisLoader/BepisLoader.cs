@@ -36,7 +36,18 @@ public class BepisLoader
         if (exePath != null)
         {
             var exeDir = Path.GetDirectoryName(exePath);
-            if (exeDir != resoDir)
+
+            // Special handling for Linux bootstrap where dotnet is in a subdirectory
+            if (exeDir != resoDir && exeDir.EndsWith("dotnet-runtime") && Path.GetFileName(exePath) == "dotnet")
+            {
+                var parentDir = Path.GetDirectoryName(exeDir);
+                if (Directory.Exists(parentDir))
+                {
+                    Log($"Linux bootstrap detected, using parent directory: {parentDir}");
+                    resoDir = parentDir;
+                }
+            }
+            else if (exeDir != resoDir)
             {
                 // Change working directory to the game directory for direct launches
                 Log($"Changing working directory from {resoDir} to {exeDir}");
