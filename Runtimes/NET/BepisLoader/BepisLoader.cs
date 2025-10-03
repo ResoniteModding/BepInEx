@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
@@ -11,10 +10,11 @@ public class BepisLoader
     internal static AssemblyLoadContext alc = null!;
     static void Main(string[] args)
     {
+        resoDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 #if DEBUG
-        File.WriteAllText("BepisLoader.log", "BepisLoader started\n");
+        logPath = Path.Combine(resoDir, "BepisLoader.log");
+        File.WriteAllText(logPath, "BepisLoader started\n");
 #endif
-        resoDir = Directory.GetCurrentDirectory();
 
         alc = new BepisLoadContext();
 
@@ -31,20 +31,6 @@ public class BepisLoader
 
         var asm = alc.LoadFromAssemblyPath(Path.Combine(bepinPath, "core", "BepInEx.NET.CoreCLR.dll"));
 
-        // Check if we're launching from outside the game directory
-        var exePath = Process.GetCurrentProcess().MainModule?.FileName;
-        if (exePath != null)
-        {
-            var exeDir = Path.GetDirectoryName(exePath);
-            if (exeDir != resoDir)
-            {
-                // Change working directory to the game directory for direct launches
-                Log($"Changing working directory from {resoDir} to {exeDir}");
-                Directory.SetCurrentDirectory(exeDir);
-                resoDir = exeDir;
-            }
-        }
-
         var resoDllPath = Path.Combine(resoDir, "Renderite.Host.dll");
         if (!File.Exists(resoDllPath)) resoDllPath = Path.Combine(resoDir, "Resonite.dll");
 
@@ -54,18 +40,19 @@ public class BepisLoader
 
         // Find and load Resonite
         var resoAsm = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(x => x.GetName().Name == "Renderite.Host");
-        if (resoAsm == null && File.Exists(resoDllPath))
-        {
-            resoAsm = alc.LoadFromAssemblyPath(resoDllPath);
-        }
+
         try
         {
+            if (resoAsm == null)
+            {
+                resoAsm = alc.LoadFromAssemblyPath(resoDllPath);
+            }
             var result = resoAsm.EntryPoint!.Invoke(null, [args]);
             if (result is Task task) task.Wait();
         }
         catch (Exception e)
         {
-            File.WriteAllLines("BepisCrash.log", [DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " - Resonite crashed", e.ToString()]);
+            File.WriteAllLines(Path.Combine(resoDir, "BepisCrash.log"), [DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " - Resonite crashed", e.ToString()]);
         }
     }
 
@@ -167,6 +154,7 @@ public class BepisLoader
     }
 
 #if DEBUG
+    private static string logPath;
     private static object _lock = new object();
 #endif
     public static void Log(string message)
@@ -174,7 +162,7 @@ public class BepisLoader
 #if DEBUG
         lock (_lock)
         {
-            File.AppendAllLines("BepisLoader.log", [message]);
+            File.AppendAllLines(logPath, [message]);
         }
 #endif
     }

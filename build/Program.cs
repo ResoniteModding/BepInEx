@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.Versioning;
 using System.Text;
 using Cake.Common;
 using Cake.Common.IO;
@@ -573,10 +574,74 @@ public sealed class BuildThunderstorePackageTask : FrostingTask<BuildContext>
     }
 }
 
+[TaskName("FixThunderstoreLinuxPermissions")]
+[IsDependentOn(typeof(BuildThunderstorePackageTask))]
+[SupportedOSPlatform("linux")]
+public sealed class FixThunderstoreLinuxPermissionsTask : FrostingTask<BuildContext>
+{
+    public override bool ShouldRun(BuildContext ctx) =>
+        ctx.Distributions.Any(d => d.Runtime == "BepisLoader") &&
+        System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Linux);
+
+    [SupportedOSPlatform("linux")]
+    public override void Run(BuildContext ctx)
+    {
+        ctx.Log.Information("Fixing Linux permissions in Thunderstore package...");
+
+        var thunderstorePackageDir = ctx.DistributionDirectory.Combine("thunderstore-package");
+        var packageFiles = ctx.GetFiles(thunderstorePackageDir.Combine("*.zip").FullPath);
+
+        foreach (var packageFile in packageFiles)
+        {
+            ctx.Log.Information($"Fixing Linux permissions in {packageFile.GetFilename()}...");
+
+            var tempDir = ctx.DistributionDirectory.Combine("temp-thunderstore-fix");
+            if (ctx.DirectoryExists(tempDir))
+            {
+                ctx.CleanDirectory(tempDir);
+            }
+            else
+            {
+                ctx.CreateDirectory(tempDir);
+            }
+
+            System.IO.Compression.ZipFile.ExtractToDirectory(packageFile.FullPath, tempDir.FullPath);
+
+            var executablePermissions = System.IO.UnixFileMode.UserExecute |
+                                       System.IO.UnixFileMode.GroupExecute |
+                                       System.IO.UnixFileMode.OtherExecute;
+
+            var executableFiles = new[] { "LinuxBootstrap.sh" };
+
+            foreach (var fileName in executableFiles)
+            {
+                var filePath = tempDir.CombineWithFilePath($"BepInExPack/{fileName}");
+                if (ctx.FileExists(filePath))
+                {
+                    var fileInfo = new System.IO.FileInfo(filePath.FullPath);
+                    var originalMode = fileInfo.UnixFileMode;
+                    ctx.Log.Information($"Original permissions for {fileName}: {Convert.ToString((int)originalMode, 8).PadLeft(3, '0')} ({originalMode})");
+
+                    fileInfo.UnixFileMode |= executablePermissions;
+
+                    var newMode = fileInfo.UnixFileMode;
+                    ctx.Log.Information($"New permissions for {fileName}: {Convert.ToString((int)newMode, 8).PadLeft(3, '0')} ({newMode})");
+                }
+            }
+
+            ctx.DeleteFile(packageFile);
+
+            System.IO.Compression.ZipFile.CreateFromDirectory(tempDir.FullPath, packageFile.FullPath);
+
+            ctx.Log.Information($"Fixed Linux permissions in {packageFile.GetFilename()}");
+        }
+    }
+}
+
 [TaskName("Publish")]
 [IsDependentOn(typeof(MakeDistTask))]
 [IsDependentOn(typeof(PushNuGetTask))]
-[IsDependentOn(typeof(BuildThunderstorePackageTask))]
+[IsDependentOn(typeof(FixThunderstoreLinuxPermissionsTask))]
 public sealed class PublishTask : FrostingTask<BuildContext>
 {
     public override void Run(BuildContext ctx)
@@ -587,9 +652,9 @@ public sealed class PublishTask : FrostingTask<BuildContext>
         {
             var targetZipName = $"BepInEx-{dist.Target}-{ctx.BuildPackageVersion}.zip";
             ctx.Log.Information($"Packing {targetZipName}");
-            ctx.Zip(ctx.DistributionDirectory.Combine(dist.Target),
-                    ctx.DistributionDirectory
-                       .CombineWithFilePath(targetZipName));
+            // https://github.com/cake-build/cake/issues/2592
+            System.IO.Compression.ZipFile.CreateFromDirectory(ctx.DistributionDirectory.Combine(dist.Target).FullPath,
+                    ctx.DistributionDirectory.CombineWithFilePath(targetZipName).FullPath);
         }
 
 
