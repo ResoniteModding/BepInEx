@@ -21,5 +21,7 @@ jobs:
             -   name: Upload Artifacts
                 uses: actions/upload-artifact@v4
                 with:
-                    path: "./bin/dist/*.zip"
                     name: "BepInEx_CI"
+                    path: |
+                        "./bin/dist/*.zip"
+                        "./bin/dist/thunderstore-package/*.zip"
